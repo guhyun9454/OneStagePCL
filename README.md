@@ -1,5 +1,5 @@
 # ONE-STAGE PROMPT-BASED CONTINUAL LEARNING
-Anonymous Pytorch implementation code for [ONE-STAGE PROMPT-BASED CONTINUAL LEARNING]
+Pytorch implementation code for [ONE-STAGE PROMPT-BASED CONTINUAL LEARNING]
 
 
 ## Abstract 
