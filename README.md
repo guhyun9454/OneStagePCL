@@ -1,5 +1,7 @@
 # ONE-STAGE PROMPT-BASED CONTINUAL LEARNING
-Pytorch implementation code for [ONE-STAGE PROMPT-BASED CONTINUAL LEARNING]
+Pytorch implementation code for ONE-STAGE PROMPT-BASED CONTINUAL LEARNING, ECCV 2024.
+
+Paper link: https://arxiv.org/abs/2402.16189
 
 
 ## Abstract 
