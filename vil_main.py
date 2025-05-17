@@ -228,11 +228,15 @@ def main():
     args = set_data_config(args)
     data_loader, class_mask, domain_list = build_continual_dataloader(args)
 
-    device = (
-        torch.device(f'cuda:{args.gpuid}')
-        if args.gpuid >= 0 and torch.cuda.is_available()
-        else torch.device('cpu')
-    )
+    # 사용 가능한 GPU 확인
+    if args.gpuid >= 0 and torch.cuda.is_available():
+        device = torch.device(f'cuda:{args.gpuid}')
+        num_gpus = torch.cuda.device_count()
+        print(f"사용 가능한 GPU 개수: {num_gpus}")
+    else:
+        device = torch.device('cpu')
+        num_gpus = 0
+        print("GPU를 사용할 수 없어 CPU로 실행합니다.")
 
     runner = VILRunner(args)
 
@@ -272,8 +276,12 @@ def main():
         criterion = nn.CrossEntropyLoss()
         optimizer = model.optimizer
         lr_scheduler = model.scheduler
-        if device.type.startswith('cuda'):
-            model = model.cuda()
+        model = model.to(device)  # 모델을 디바이스로 이동
+        
+        # 멀티 GPU 지원 설정
+        if device.type.startswith('cuda') and num_gpus > 1:
+            print(f"{num_gpus}개의 GPU를 병렬로 사용합니다.")
+            model = nn.DataParallel(model)
 
         acc_matrix = runner.train_and_evaluate(
             model,
