@@ -77,7 +77,14 @@ def parse_args():
         help='which prompt learner classes to run (e.g., CODAPrompt, OSPrompt, L2P)')
     parser.add_argument('--gpuid', type=int, default=0,
                         help='GPU id (negative for CPU)')
+    # 데이터 로딩 관련 추가 매개변수들
+    parser.add_argument('--shuffle', type=bool, default=False)
+    parser.add_argument('--pin_memory', type=bool, default=True)
+    parser.add_argument('--seed', type=int, default=0)
+
+    
     args = parser.parse_args()
+    args.develop_tasks = False
 
     if args.config:
         with open(args.config, 'r') as f:
@@ -231,11 +238,11 @@ def main():
     args = parse_args()
     os.makedirs(args.log_dir, exist_ok=True)
     # set random seeds
-    random.seed(0)
-    np.random.seed(0)
-    torch.manual_seed(0)
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
     if args.gpuid >= 0 and torch.cuda.is_available():
-        torch.cuda.manual_seed_all(0)
+        torch.cuda.manual_seed_all(args.seed)
 
     args = set_data_config(args)
     data_loader, class_mask, domain_list = build_continual_dataloader(args)

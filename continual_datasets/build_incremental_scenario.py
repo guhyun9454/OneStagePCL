@@ -155,14 +155,16 @@ def build_continual_dataloader(args):
             dataset_train, sampler=sampler_train,
             batch_size=args.batch_size,
             num_workers=args.num_workers,
-            pin_memory=True,
+            pin_memory=args.pin_memory if hasattr(args, 'pin_memory') else True,
+            drop_last=args.drop_last if hasattr(args, 'drop_last') else False,
         )
 
         data_loader_val = torch.utils.data.DataLoader(
             dataset_val, sampler=sampler_val,
             batch_size=args.batch_size,
             num_workers=args.num_workers,
-            pin_memory=True,
+            pin_memory=args.pin_memory if hasattr(args, 'pin_memory') else True,
+            drop_last=False,  # val set에서는 drop_last 사용하지 않음
         )
 
         dataloader.append({'train': data_loader_train, 'val': data_loader_val})
