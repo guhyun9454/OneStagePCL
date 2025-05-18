@@ -288,7 +288,7 @@ def main():
             'upper_bound_flag': False,
             'tasks': None,
             'top_k': 1,
-            'prompt_param': [args.num_tasks] + args.prompt_param,
+            'prompt_param': [args.num_tasks, args.prompt_param],
             'query': args.query,
         }
         model = ModelClass(cfg)
