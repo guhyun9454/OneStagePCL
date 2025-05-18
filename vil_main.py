@@ -115,11 +115,11 @@ class VILRunner:
         for x, y in train_loader:
             x, y = x.to(device), y.to(device)
             optimizer.zero_grad()
-            output, prompt_loss = model(x, train=True)
-            loss = criterion(output, y) + prompt_loss.sum()
+            logits, prompt_loss = model.model(x, train=True)
+            loss = criterion(logits, y) + prompt_loss.sum()
             loss.backward()
             optimizer.step()
-            acc = accuracy(output, y)
+            acc = accuracy(logits, y)
             losses.update(loss.item(), y.size(0))
             accs.update(acc, y.size(0))
         return losses.avg, accs.avg
@@ -138,10 +138,11 @@ class VILRunner:
                     continue
                 x_sel = x[mask]
                 y_sel = y[mask]
-                output, _ = model(x_sel, train=False)
+                logits, _ = model.model(x_sel, train=False)
                 idx = torch.tensor(classes, device=device)
-                out_sel = output[:, idx]
-                y_rel = y_sel - classes[0]
+                out_sel = logits[:, idx]
+                index_map = {c:i for i,c in enumerate(classes)}
+                y_rel = torch.tensor([index_map[int(k)] for k in y_sel.cpu()], device=device)
                 accs.update(accuracy(out_sel, y_rel), y_sel.size(0))
         return accs.avg
 
@@ -174,10 +175,21 @@ class VILRunner:
     ):
         args = self.args
         acc_matrix = np.zeros((args.num_tasks, args.num_tasks))
+        seen_classes = set()  # 이미 본 클래스 추적
+        
         for task_id in range(args.num_tasks):
             print(f"{f'Training on Task {task_id+1}/{args.num_tasks}':=^60}")
-            # update prompt valid output dimension
-            model.add_valid_output_dim(len(class_mask[task_id]))
+            
+            # 새로 보는 클래스만 valid_output_dim 증가
+            unseen = 0
+            for c in class_mask[task_id]:
+                if c not in seen_classes:
+                    unseen += 1
+                    seen_classes.add(c)
+            
+            if unseen > 0:
+                model.add_valid_output_dim(unseen)
+                
             train_start = time.time()
             for epoch in range(args.epochs):
                 epoch_start = time.time()
