@@ -8,6 +8,8 @@ from random import shuffle
 from collections import OrderedDict
 import dataloaders
 from dataloaders.utils import *
+from continual_datasets.dataset_utils import set_data_config
+from continual_datasets.build_incremental_scenario import build_continual_dataloader
 from torch.utils.data import DataLoader
 import learners
 
@@ -26,6 +28,44 @@ class Trainer:
         # model load directory
         self.model_top_dir = args.log_dir
 
+        # VIL/DIL/CIL/JOINT scenarios via continual_datasets
+        if args.dataset in ['iDigits', 'DomainNet', 'CORe50', 'CLEAR']:
+            args = set_data_config(args)
+            args.data_path = args.dataroot
+            args.num_workers = args.workers
+            self.dataloader, self.class_mask, self.domain_list = build_continual_dataloader(args)
+            self.num_tasks = args.num_tasks
+            self.task_names = [str(i+1) for i in range(self.num_tasks)]
+            self.grayscale_vis = False
+            self.top_k = 1
+
+            self.learner_config = {
+                'num_classes': args.num_classes,
+                'lr': args.lr,
+                'debug_mode': args.debug_mode == 1,
+                'momentum': args.momentum,
+                'weight_decay': args.weight_decay,
+                'schedule': args.schedule,
+                'schedule_type': args.schedule_type,
+                'model_type': args.model_type,
+                'model_name': args.model_name,
+                'optimizer': args.optimizer,
+                'gpuid': args.gpuid,
+                'memory': args.memory,
+                'temp': args.temp,
+                'out_dim': args.num_classes,
+                'overwrite': args.overwrite == 1,
+                'DW': args.DW,
+                'batch_size': args.batch_size,
+                'upper_bound_flag': args.upper_bound_flag,
+                'tasks': self.class_mask,
+                'top_k': self.top_k,
+                'prompt_param': [self.num_tasks, args.prompt_param],
+                'query': args.query
+            }
+            self.learner_type, self.learner_name = args.learner_type, args.learner_name
+            self.learner = learners.__dict__[self.learner_type].__dict__[self.learner_name](self.learner_config)
+            return
         # select dataset
         self.grayscale_vis = False
         self.top_k = 1
@@ -142,7 +182,23 @@ class Trainer:
             return self.learner.validation(test_loader, task_metric=task)
 
     def train(self, avg_metrics):
-    
+
+        # VIL/DIL/CIL/JOINT training using continual_datasets output
+        if hasattr(self, 'dataloader'):
+            for i in range(self.num_tasks):
+                self.current_t_index = i
+                train_loader = self.dataloader[i]['train']
+                test_loader = self.dataloader[i]['val']
+                task_name = self.task_names[i]
+                print(f"{'='*20} Task {task_name} {'='*20}")
+                model_save_dir = os.path.join(self.model_top_dir, f'models/repeat-{self.seed+1}/task-{task_name}/')
+                os.makedirs(model_save_dir, exist_ok=True)
+                avg_train_time = self.learner.learn_batch(train_loader, None, model_save_dir, test_loader)
+                self.learner.save_model(model_save_dir)
+                if avg_train_time is not None:
+                    avg_metrics['time']['global'][i] = avg_train_time
+            return avg_metrics
+
         # temporary results saving
         temp_table = {}
         for mkey in self.metric_keys: temp_table[mkey] = []
@@ -253,6 +309,39 @@ class Trainer:
         return {'global': avg_acc_all,'pt': avg_acc_pt,'pt-local': avg_acc_pt_local}, f_score
 
     def evaluate(self, avg_metrics):
+        # VIL/DIL/CIL/JOINT evaluation using continual_datasets output
+        if hasattr(self, 'dataloader'):
+            self.learner = learners.__dict__[self.learner_type].__dict__[self.learner_name](self.learner_config)
+            metric_table = {}
+            metric_table_local = {}
+            for mkey in self.metric_keys:
+                metric_table[mkey] = {}
+                metric_table_local[mkey] = {}
+
+            acc_matrix = np.zeros((self.num_tasks, self.num_tasks))
+            for i in range(self.num_tasks):
+                task_name = self.task_names[i]
+                print(f"{'='*20} Evaluating Task {task_name} {'='*20}")
+                model_save_dir = os.path.join(self.model_top_dir, f'models/repeat-{self.seed+1}/task-{task_name}/')
+                self.learner.task_count = i
+                self.learner.add_valid_output_dim(len(self.class_mask[i]))
+                self.learner.pre_steps()
+                self.learner.load_model(model_save_dir)
+
+                metric_table['acc'][task_name] = OrderedDict()
+                metric_table_local['acc'][task_name] = OrderedDict()
+                for j in range(i+1):
+                    val_name = self.task_names[j]
+                    acc = self.learner.validation(self.dataloader[j]['val'], task_in=self.class_mask[j])
+                    metric_table['acc'][task_name][val_name] = acc
+                    acc_matrix[j, i] = acc
+                for j in range(i+1):
+                    val_name = self.task_names[j]
+                    acc_loc = self.learner.validation(self.dataloader[j]['val'], task_in=self.class_mask[j], task_global=False)
+                    metric_table_local['acc'][task_name][val_name] = acc_loc
+
+            avg_metrics['acc'], f_score = self.summarize_acc(avg_metrics['acc'], metric_table['acc'], metric_table_local['acc'])
+            return avg_metrics, f_score
 
         self.learner = learners.__dict__[self.learner_type].__dict__[self.learner_name](self.learner_config)
 
