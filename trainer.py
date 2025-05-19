@@ -346,6 +346,8 @@ class Trainer:
                     acc_loc = self.learner.validation(self.dataloader[j]['val'], task_in=self.class_mask[j], task_global=False)
                     metric_table_local['acc'][task_name][val_name] = acc_loc
 
+                self.evaluate_till_now(acc_matrix, i)
+
             avg_metrics['acc'], f_score = self.summarize_acc(avg_metrics['acc'], metric_table['acc'], metric_table_local['acc'])
             return avg_metrics, f_score
 
@@ -407,3 +409,13 @@ class Trainer:
 
         fgt = fgt/(index-1)
         return fgt
+
+    def evaluate_till_now(self, acc_matrix, task_id):
+        A_list = [np.mean(acc_matrix[:k+1, k]) for k in range(task_id+1)]
+        A_last = A_list[-1]
+        A_avg = np.mean(A_list)
+        result_str = f"[Average accuracy till task{task_id+1}] A_last: {A_last:.2f} A_avg: {A_avg:.2f}"
+        if task_id > 0:
+            forgetting = np.mean((np.max(acc_matrix, axis=1) - acc_matrix[:, task_id])[:task_id])
+            result_str += f" Forgetting: {forgetting:.4f}"
+        print(result_str)
