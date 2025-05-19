@@ -27,7 +27,7 @@ def create_args():
     parser.add_argument('--query', type=str, default='vit', help="choose one of [poolformer]")
     parser.add_argument('--debug_mode', type=int, default=0, metavar='N',
                         help="activate learner specific settings for debug_mode")
-    parser.add_argument('--repeat', type=int, default=1, help="Repeat the experiment N times")
+    parser.add_argument('--seed', type=int, default=0, help="Random seed for reproducibility")
     parser.add_argument('--overwrite', type=int, default=0, metavar='N', help='Train regardless of whether saved model exists')
 
     # CL Args          
@@ -92,94 +92,40 @@ if __name__ == '__main__':
         avg_metrics[mkey] = {}
         for skey in save_keys: avg_metrics[mkey][skey] = []
 
-    # load results
-    if args.overwrite:
-        start_r = 0
-    else:
-        try:
-            for mkey in metric_keys: 
-                for skey in save_keys:
-                    if (not (mkey in global_only)) or (skey == 'global'):
-                        save_file = args.log_dir+'/results-'+mkey+'/'+skey+'.yaml'
-                        if os.path.exists(save_file):
-                            with open(save_file, 'r') as yaml_file:
-                                yaml_result = yaml.safe_load(yaml_file)
-                                avg_metrics[mkey][skey] = np.asarray(yaml_result['history'])
+    # 한 번만 실행되도록 수정
+    print('************************************')
+    print('* STARTING EXPERIMENT')
+    print('************************************')
 
-            # next repeat needed
-            start_r = avg_metrics[metric_keys[0]][save_keys[0]].shape[-1]
+    # 사용자가 설정한 seed 사용
+    seed = args.seed
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
 
-            # extend if more repeats left
-            if start_r < args.repeat:
-                max_task = avg_metrics['acc']['global'].shape[0]
-                for mkey in metric_keys: 
-                    avg_metrics[mkey]['global'] = np.append(avg_metrics[mkey]['global'], np.zeros((max_task,args.repeat-start_r)), axis=-1)
-                    if (not (mkey in global_only)):
-                        avg_metrics[mkey]['pt'] = np.append(avg_metrics[mkey]['pt'], np.zeros((max_task,max_task,args.repeat-start_r)), axis=-1)
-                        avg_metrics[mkey]['pt-local'] = np.append(avg_metrics[mkey]['pt-local'], np.zeros((max_task,max_task,args.repeat-start_r)), axis=-1)
+    # set up a trainer
+    trainer = Trainer(args, seed, metric_keys, save_keys)
 
-        except:
-            start_r = 0
-    # start_r = 0
-    f_score_array = []
-    for r in range(start_r, args.repeat):
+    # init total run metrics storage
+    max_task = args.num_tasks if args.max_task <= 0 else args.max_task
+    for mkey in metric_keys: 
+        avg_metrics[mkey]['global'] = np.zeros((max_task, 1))
+        if (not (mkey in global_only)):
+            avg_metrics[mkey]['pt'] = np.zeros((max_task, max_task, 1))
+            avg_metrics[mkey]['pt-local'] = np.zeros((max_task, max_task, 1))
 
-        print('************************************')
-        print('* STARTING TRIAL ' + str(r+1))
-        print('************************************')
+    # train model
+    avg_metrics = trainer.train(avg_metrics)  
 
-        # set random seeds
-        seed = r
-        random.seed(seed)
-        np.random.seed(seed)
-        torch.manual_seed(seed)
-        torch.cuda.manual_seed(seed)
+    # evaluate model
+    avg_metrics, f_score = trainer.evaluate(avg_metrics)
 
-
-        # set up a trainer
-        trainer = Trainer(args, seed, metric_keys, save_keys)
-
-        # init total run metrics storage
-        max_task = args.num_tasks if args.max_task <= 0 else args.max_task
-        if r == 0: 
-            for mkey in metric_keys: 
-                avg_metrics[mkey]['global'] = np.zeros((max_task,args.repeat))
-                if (not (mkey in global_only)):
-                    avg_metrics[mkey]['pt'] = np.zeros((max_task,max_task,args.repeat))
-                    avg_metrics[mkey]['pt-local'] = np.zeros((max_task,max_task,args.repeat))
-
-        # train model
-        avg_metrics = trainer.train(avg_metrics)  
-
-        # evaluate model
-        avg_metrics, f_score = trainer.evaluate(avg_metrics)
-        f_score_array.append(f_score)
-
-        # save results
-        # for mkey in metric_keys:
-        #     m_dir = args.log_dir+'/results-'+mkey+'/'
-        #     if not os.path.exists(m_dir): os.makedirs(m_dir)
-        #     for skey in save_keys:
-        #         if (not (mkey in global_only)) or (skey == 'global'):
-        #             save_file = m_dir+skey+'.yaml'
-        #             result=avg_metrics[mkey][skey]
-        #             yaml_results = {}
-        #             if len(result.shape) > 2:
-        #                 yaml_results['mean'] = result[:,:,:r+1].mean(axis=2).tolist()
-        #                 if r>1: yaml_results['std'] = result[:,:,:r+1].std(axis=2).tolist()
-        #                 yaml_results['history'] = result[:,:,:r+1].tolist()
-        #             else:
-        #                 yaml_results['mean'] = result[:,:r+1].mean(axis=1).tolist()
-        #                 if r>1: yaml_results['std'] = result[:,:r+1].std(axis=1).tolist()
-        #                 yaml_results['history'] = result[:,:r+1].tolist()
-        #             with open(save_file, 'w') as yaml_file:
-        #                 yaml.dump(yaml_results, yaml_file, default_flow_style=False)
-
-        # Print the summary so far
-        print('===Summary of experiment repeats:',r+1,'/',args.repeat,'===')
-        for mkey in metric_keys: 
-            print(mkey, ' | mean:', avg_metrics[mkey]['global'][-1,:r+1].mean(), 'std:', avg_metrics[mkey]['global'][-1,:r+1].std())
-        print ('F-score: mean {} std {}'.format(np.mean(f_score_array), np.std(f_score_array)))
+    # 결과 출력
+    print('===실험 결과 요약===')
+    for mkey in metric_keys: 
+        print(mkey, ' | value:', avg_metrics[mkey]['global'][-1, 0])
+    print ('F-score:', f_score)
     
 
 
