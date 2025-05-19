@@ -4,7 +4,7 @@ first_split_size: 10
 other_split_size: 10
 schedule:
 - 5
-schedule_type: None
+schedule_type: cosine
 batch_size: 128
 optimizer: Adam
 lr: 0.001
