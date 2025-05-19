@@ -8,7 +8,7 @@ from .vit import VisionTransformer
 import numpy as np
 import copy
 from timm.models import load_checkpoint
-import effvitmodels
+# import effvitmodels
 import timm
 import torchvision.transforms as transforms
 from timm.models import vit_base_patch16_224

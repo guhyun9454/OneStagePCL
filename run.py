@@ -140,7 +140,7 @@ if __name__ == '__main__':
         trainer = Trainer(args, seed, metric_keys, save_keys)
 
         # init total run metrics storage
-        max_task = trainer.max_task
+        max_task = args.num_tasks if args.max_task <= 0 else args.max_task
         if r == 0: 
             for mkey in metric_keys: 
                 avg_metrics[mkey]['global'] = np.zeros((max_task,args.repeat))

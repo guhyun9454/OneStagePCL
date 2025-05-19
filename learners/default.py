@@ -97,7 +97,12 @@ class NormalNN(nn.Module):
                 if epoch > 0: self.scheduler.step()
 
                 batch_timer.tic()
-                for i, (x, y, task)  in enumerate(train_loader):
+                for i, data in enumerate(train_loader):
+                    if len(data) == 3:
+                        x, y, task = data
+                    else:
+                        x, y = data
+                        task = None #안쓰임
 
                     # verify in train mode
                     self.model.train()
@@ -174,7 +179,13 @@ class NormalNN(nn.Module):
         model.eval()
         with torch.no_grad():
 
-            for i, (input, target, task) in enumerate(dataloader):
+            for i, data in enumerate(dataloader):
+                # 데이터가 2개 또는 3개의 값을 가질 수 있도록 처리
+                if len(data) == 3:
+                    input, target, task = data
+                else:
+                    input, target = data
+                    task = 0  # 기본값 설정
 
                 if self.gpu:
                         input = input.cuda()
