@@ -193,9 +193,10 @@ class Trainer:
         # VIL/DIL/CIL/JOINT training using continual_datasets output
         if self.vil_dataloader:
             print("DEBUG: VIL 모드로 학습을 시작합니다.")
+            acc_matrix = np.zeros((self.num_tasks, self.num_tasks))
             for i in range(self.num_tasks):
                 self.current_t_index = i
-                train_loader = self.dataloader[i]['train']  
+                train_loader = self.dataloader[i]['train']
                 test_loader = self.dataloader[i]['val']
                 task_name = self.task_names[i]
                 print(f"{'='*20} Task {task_name} {'='*20}")
@@ -205,6 +206,13 @@ class Trainer:
                 self.learner.save_model(model_save_dir)
                 if avg_train_time is not None:
                     avg_metrics['time']['global'][i] = avg_train_time
+
+                for t in range(i + 1):
+                    acc_matrix[t, i] = self.learner.validation(
+                        self.dataloader[t]['val'], task_in=self.class_mask[t]
+                    )
+                self.evaluate_till_now(acc_matrix, i)
+
             return avg_metrics
 
         # temporary results saving
