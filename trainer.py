@@ -25,12 +25,13 @@ class Trainer:
         self.batch_size = args.batch_size
         self.workers = args.workers
         self.IL_mode = args.IL_mode
-        
+        self.vil_dataloader = False
         # model load directory
         self.model_top_dir = args.log_dir
 
         # VIL/DIL/CIL/JOINT scenarios via continual_datasets
         if args.dataset in ['iDigits', 'DomainNet', 'CORe50', 'CLEAR']:
+            self.vil_dataloader = True
             args = set_data_config(args)
             args.data_path = args.dataroot
             args.num_workers = args.workers
@@ -65,10 +66,11 @@ class Trainer:
                 'query': args.query,
                 'IL_mode': args.IL_mode
             }
+            print(self.learner_config)
             self.learner_type, self.learner_name = args.learner_type, args.learner_name
             self.learner = learners.__dict__[self.learner_type].__dict__[self.learner_name](self.learner_config)
 
-            if args.IL_mode == 'vil':
+            if self.vil_dataloader:
                 self.learner.add_valid_output_dim(args.num_classes)
             return
         # select dataset
@@ -189,10 +191,10 @@ class Trainer:
     def train(self, avg_metrics):
 
         # VIL/DIL/CIL/JOINT training using continual_datasets output
-        if hasattr(self, 'dataloader'):
+        if self.vil_dataloader:
             for i in range(self.num_tasks):
                 self.current_t_index = i
-                train_loader = self.dataloader[i]['train']
+                train_loader = self.dataloader[i]['train']  
                 test_loader = self.dataloader[i]['val']
                 task_name = self.task_names[i]
                 print(f"{'='*20} Task {task_name} {'='*20}")
@@ -315,7 +317,8 @@ class Trainer:
 
     def evaluate(self, avg_metrics):
         # VIL/DIL/CIL/JOINT evaluation using continual_datasets output
-        if hasattr(self, 'dataloader'):
+        if self.vil_dataloader:
+            print(self.learner_config)
             self.learner = learners.__dict__[self.learner_type].__dict__[self.learner_name](self.learner_config)
             self.learner.add_valid_output_dim(self.learner_config['out_dim'])
             metric_table = {}
