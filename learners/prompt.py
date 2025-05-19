@@ -20,6 +20,7 @@ class Prompt(NormalNN):
 
     def __init__(self, learner_config):
         self.prompt_param = learner_config['prompt_param']
+        self.IL_mode = learner_config.get('IL_mode', None)
         super(Prompt, self).__init__(learner_config)
 
     def update_model(self, inputs, targets):
@@ -28,8 +29,8 @@ class Prompt(NormalNN):
         logits, prompt_loss = self.model(inputs, train=True)
         logits = logits[:,:self.valid_out_dim]
 
-        # ce with heuristic
-        logits[:,:self.last_valid_out_dim] = -float('inf')
+        if self.IL_mode != 'vil':
+            logits[:,:self.last_valid_out_dim] = -float('inf')
         dw_cls = self.dw_k[-1 * torch.ones(targets.size()).long()]
         total_loss = self.criterion(logits, targets.long(), dw_cls)
 

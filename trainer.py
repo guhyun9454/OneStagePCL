@@ -24,6 +24,7 @@ class Trainer:
         self.log_dir = args.log_dir
         self.batch_size = args.batch_size
         self.workers = args.workers
+        self.IL_mode = args.IL_mode
         
         # model load directory
         self.model_top_dir = args.log_dir
@@ -61,10 +62,14 @@ class Trainer:
                 'tasks': self.class_mask,
                 'top_k': self.top_k,
                 'prompt_param': [self.num_tasks, args.prompt_param],
-                'query': args.query
+                'query': args.query,
+                'IL_mode': args.IL_mode
             }
             self.learner_type, self.learner_name = args.learner_type, args.learner_name
             self.learner = learners.__dict__[self.learner_type].__dict__[self.learner_name](self.learner_config)
+
+            if args.IL_mode == 'vil':
+                self.learner.add_valid_output_dim(args.num_classes)
             return
         # select dataset
         self.grayscale_vis = False
@@ -312,6 +317,7 @@ class Trainer:
         # VIL/DIL/CIL/JOINT evaluation using continual_datasets output
         if hasattr(self, 'dataloader'):
             self.learner = learners.__dict__[self.learner_type].__dict__[self.learner_name](self.learner_config)
+            self.learner.add_valid_output_dim(self.learner_config['out_dim'])
             metric_table = {}
             metric_table_local = {}
             for mkey in self.metric_keys:
