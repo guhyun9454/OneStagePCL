@@ -192,6 +192,7 @@ class Trainer:
 
         # VIL/DIL/CIL/JOINT training using continual_datasets output
         if self.vil_dataloader:
+            print("DEBUG: VIL 모드로 학습을 시작합니다.")
             for i in range(self.num_tasks):
                 self.current_t_index = i
                 train_loader = self.dataloader[i]['train']  
@@ -318,6 +319,7 @@ class Trainer:
     def evaluate(self, avg_metrics):
         # VIL/DIL/CIL/JOINT evaluation using continual_datasets output
         if self.vil_dataloader:
+            print("DEBUG: VIL 모드로 평가를 시작합니다.")
             print(self.learner_config)
             self.learner = learners.__dict__[self.learner_type].__dict__[self.learner_name](self.learner_config)
             self.learner.add_valid_output_dim(self.learner_config['out_dim'])
@@ -414,6 +416,8 @@ class Trainer:
         return fgt
 
     def evaluate_till_now(self, acc_matrix, task_id):
+        print("DEBUG: evaluate_till_now 함수가 호출되었습니다.")
+        print(f"DEBUG: acc_matrix 형태: {acc_matrix.shape}, task_id: {task_id}")
         A_list = [np.mean(acc_matrix[:k+1, k]) for k in range(task_id+1)]
         A_last = A_list[-1]
         A_avg = np.mean(A_list)
