@@ -209,10 +209,15 @@ class Trainer:
                 test_loader = self.dataloader[i]['val']
                 task_name = self.task_names[i]
                 print(f"{'='*20} Task {task_name} {'='*20}")
+                """
                 model_save_dir = os.path.join(self.model_top_dir, f'models/repeat-{self.seed+1}/task-{task_name}/')
                 os.makedirs(model_save_dir, exist_ok=True)
+                """
+                model_save_dir = None
                 avg_train_time = self.learner.learn_batch(train_loader, None, model_save_dir, test_loader, develop=self.develop)
+                """
                 self.learner.save_model(model_save_dir)
+                """
                 if avg_train_time is not None:
                     avg_metrics['time']['global'][i] = avg_train_time
 
@@ -377,10 +382,12 @@ class Trainer:
             for i in range(self.num_tasks):
                 task_name = self.task_names[i]
                 print(f"{'='*20} Evaluating Task {task_name} {'='*20}")
+                """
                 model_save_dir = os.path.join(self.model_top_dir, f'models/repeat-{self.seed+1}/task-{task_name}/')
                 self.learner.task_count = i
                 self.learner.pre_steps()
                 self.learner.load_model(model_save_dir)
+                """
 
                 metric_table['acc'][task_name] = OrderedDict()
                 metric_table_local['acc'][task_name] = OrderedDict()

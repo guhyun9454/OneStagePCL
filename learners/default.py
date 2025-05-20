@@ -12,6 +12,7 @@ import contextlib
 import os
 import copy
 from utils.schedulers import CosineSchedule
+from tqdm import tqdm
 
 class NormalNN(nn.Module):
     '''
@@ -71,12 +72,12 @@ class NormalNN(nn.Module):
         
         # try to load model
         need_train = True
-        if not self.overwrite:
-            try:
-                self.load_model(model_save_dir)
-                need_train = False
-            except:
-                pass
+        # if not self.overwrite:
+        #     try:
+        #         self.load_model(model_save_dir)
+        #         need_train = False
+        #     except:
+        #         pass
 
 
         # trains
@@ -97,7 +98,7 @@ class NormalNN(nn.Module):
                 if epoch > 0: self.scheduler.step()
 
                 batch_timer.tic()
-                for i, data in enumerate(train_loader):
+                for i, data in enumerate(tqdm(train_loader)):
                     if develop and i > 10: break
                     if len(data) == 3:
                         x, y, task = data
