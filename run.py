@@ -18,8 +18,8 @@ def create_args():
     parser = argparse.ArgumentParser()
 
     # Standard Args
-    parser.add_argument('--gpuid', nargs="+", type=int, default=[0],
-                         help="The list o f gpuid, ex:--gpuid 3 1. Negative value means cpu-only")
+    parser.add_argument('--gpuid', nargs="+", type=int, default=None,
+                         help="The list o f gpuid, ex:--gpuid 3 1. Negative value means cpu-only. 기본값 None은 모든 사용 가능한 GPU를 사용함을 의미합니다.")
     parser.add_argument('--log_dir', type=str, default="outputs/out",
                          help="Save experiments results in dir for future plotting!")
     parser.add_argument('--learner_type', type=str, default='prompt', help="The type (filename) of learner")
@@ -70,6 +70,20 @@ class Logger(object):
 
 if __name__ == '__main__':
     args = get_args(sys.argv[1:])
+
+    # 사용 가능한 모든 GPU 감지 및 설정
+    if args.gpuid is None:
+        if torch.cuda.is_available():
+            num_gpus = torch.cuda.device_count()
+            if num_gpus > 0:
+                args.gpuid = list(range(num_gpus))
+                print(f"자동으로 감지된 GPU {num_gpus}개를 모두 사용합니다: {args.gpuid}")
+            else:
+                args.gpuid = [-1]  # CPU 모드
+                print("사용 가능한 GPU가 없어 CPU 모드로 실행합니다.")
+        else:
+            args.gpuid = [-1]  # CPU 모드
+            print("CUDA를 사용할 수 없어 CPU 모드로 실행합니다.")
 
     # determinstic backend
     torch.backends.cudnn.benchmark = False
