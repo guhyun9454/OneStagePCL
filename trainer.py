@@ -330,7 +330,7 @@ class Trainer:
             print("DEBUG: VIL 모드로 평가를 시작합니다.")
             print(self.learner_config)
             self.learner = learners.__dict__[self.learner_type].__dict__[self.learner_name](self.learner_config)
-            # self.learner.add_valid_output_dim(self.learner_config['out_dim'])
+            self.learner.add_valid_output_dim(self.learner_config['out_dim'])
             metric_table = {}
             metric_table_local = {}
             for mkey in self.metric_keys:
@@ -343,7 +343,6 @@ class Trainer:
                 print(f"{'='*20} Evaluating Task {task_name} {'='*20}")
                 model_save_dir = os.path.join(self.model_top_dir, f'models/repeat-{self.seed+1}/task-{task_name}/')
                 self.learner.task_count = i
-                self.learner.add_valid_output_dim(len(self.class_mask[i]))
                 self.learner.pre_steps()
                 self.learner.load_model(model_save_dir)
 
