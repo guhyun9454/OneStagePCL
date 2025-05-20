@@ -184,10 +184,28 @@ class Trainer:
         # eval
         if self.vil_dataloader:
             test_loader = self.dataloader[t_index]['val']
+            # In VIL setting we are interested in the global classification   
+            # accuracy across all classes observed so far. `task_global=True`  
+            # keeps the whole classifier active while still allowing us to  
+            # select only the relevant targets for the current validation  
+            # split. When `local=True` we additionally report the task–local
+            # accuracy (restricted output space) to facilitate comparison.
             if local:
-                return self.learner.validation(test_loader, task_in=self.class_mask[t_index], task_global=False, task_metric=task)
+                # task-local accuracy (restricted to task_in)
+                return self.learner.validation(
+                    test_loader,
+                    task_in=self.class_mask[t_index],
+                    task_global=False,
+                    task_metric=task,
+                )
             else:
-                return self.learner.validation(test_loader, task_in=self.class_mask[t_index], task_metric=task)
+                # task-global accuracy (full output space)
+                return self.learner.validation(
+                    test_loader,
+                    task_in=self.class_mask[t_index],
+                    task_global=True,
+                    task_metric=task,
+                )
         """
         self.test_dataset.load_dataset(t_index, train=True)
         test_loader  = DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False, drop_last=False, num_workers=self.workers)
@@ -216,9 +234,12 @@ class Trainer:
                 if avg_train_time is not None:
                     avg_metrics['time']['global'][i] = avg_train_time
 
+                # Compute global accuracy for all (seen) tasks so far
                 for t in range(i + 1):
                     acc_matrix[t, i] = self.learner.validation(
-                        self.dataloader[t]['val'], task_in=self.class_mask[t]
+                        self.dataloader[t]['val'],
+                        task_in=self.class_mask[t],
+                        task_global=True,
                     )
                 self.evaluate_till_now(acc_matrix, i)
 
@@ -384,9 +405,14 @@ class Trainer:
 
                 metric_table['acc'][task_name] = OrderedDict()
                 metric_table_local['acc'][task_name] = OrderedDict()
+                # Global accuracy over the full output space
                 for j in range(i+1):
                     val_name = self.task_names[j]
-                    acc = self.learner.validation(self.dataloader[j]['val'], task_in=self.class_mask[j])
+                    acc = self.learner.validation(
+                        self.dataloader[j]['val'],
+                        task_in=self.class_mask[j],
+                        task_global=True,
+                    )
                     metric_table['acc'][task_name][val_name] = acc
                     acc_matrix[j, i] = acc
                 for j in range(i+1):
