@@ -21,3 +21,4 @@ rand_split: False
 verbose: False
 shuffle: False
 max_task: -1
+develop_tasks: False
