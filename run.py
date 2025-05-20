@@ -45,7 +45,7 @@ def create_args():
     # Config Arg
     parser.add_argument('--config', type=str, default="configs/config.yaml",
                          help="yaml experiment config input")
-
+    parser.add_argument('--develop', default=False, action='store_true', help='develop mode')
     return parser
 
 def get_args(argv):

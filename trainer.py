@@ -26,6 +26,7 @@ class Trainer:
         self.workers = args.workers
         self.IL_mode = args.IL_mode
         self.vil_dataloader = False
+        self.develop = args.develop
         # model load directory
         self.model_top_dir = args.log_dir
 
@@ -181,12 +182,20 @@ class Trainer:
         # print('validation split name:', val_name)
         
         # eval
+        if self.vil_dataloader:
+            test_loader = self.dataloader[t_index]['val']
+            if local:
+                return self.learner.validation(test_loader, task_in=self.class_mask[t_index], task_global=False, task_metric=task)
+            else:
+                return self.learner.validation(test_loader, task_in=self.class_mask[t_index], task_metric=task)
+        """
         self.test_dataset.load_dataset(t_index, train=True)
         test_loader  = DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False, drop_last=False, num_workers=self.workers)
         if local:
             return self.learner.validation(test_loader, task_in = self.tasks_logits[t_index], task_metric=task)
         else:
             return self.learner.validation(test_loader, task_metric=task)
+        """
 
     def train(self, avg_metrics):
 
@@ -202,7 +211,7 @@ class Trainer:
                 print(f"{'='*20} Task {task_name} {'='*20}")
                 model_save_dir = os.path.join(self.model_top_dir, f'models/repeat-{self.seed+1}/task-{task_name}/')
                 os.makedirs(model_save_dir, exist_ok=True)
-                avg_train_time = self.learner.learn_batch(train_loader, None, model_save_dir, test_loader)
+                avg_train_time = self.learner.learn_batch(train_loader, None, model_save_dir, test_loader, develop=self.develop)
                 self.learner.save_model(model_save_dir)
                 if avg_train_time is not None:
                     avg_metrics['time']['global'][i] = avg_train_time
@@ -215,6 +224,7 @@ class Trainer:
 
             return avg_metrics
 
+        """
         # temporary results saving
         temp_table = {}
         for mkey in self.metric_keys: temp_table[mkey] = []
@@ -291,7 +301,8 @@ class Trainer:
 
             if avg_train_time is not None: avg_metrics['time']['global'][i] = avg_train_time
 
-        return avg_metrics 
+        return avg_metrics
+        """
     
     def summarize_acc(self, acc_dict, acc_table, acc_table_pt):
 
@@ -302,6 +313,30 @@ class Trainer:
 
         # Calculate average performance across self.tasks
         # Customize this part for a different performance metric
+        if self.vil_dataloader:
+            avg_acc_history = [0] * self.num_tasks
+            acc_matrix = np.zeros((self.num_tasks, self.num_tasks))
+            for i in range(self.num_tasks):
+                train_name = self.task_names[i]
+                cls_acc_sum = 0
+                for j in range(i+1):
+                    val_name = self.task_names[j]
+                    acc_matrix[i,j] = acc_table[val_name][train_name]
+                    cls_acc_sum += acc_table[val_name][train_name]
+                    avg_acc_pt[j,i,self.seed] = acc_table[val_name][train_name]
+                    avg_acc_pt_local[j,i,self.seed] = acc_table_pt[val_name][train_name]
+                avg_acc_history[i] = cls_acc_sum / (i + 1)
+            
+            # get forget score
+            f_score = self.cal_fscore(acc_matrix)
+            
+            # Gather the final avg accuracy
+            avg_acc_all[:,self.seed] = avg_acc_history
+            
+            # repack dictionary and return
+            return {'global': avg_acc_all,'pt': avg_acc_pt,'pt-local': avg_acc_pt_local}, f_score
+        
+        """
         avg_acc_history = [0] * self.max_task
         acc_matrix = np.zeros((self.max_task, self.max_task))
         for i in range(self.max_task):
@@ -323,6 +358,7 @@ class Trainer:
 
         # repack dictionary and return
         return {'global': avg_acc_all,'pt': avg_acc_pt,'pt-local': avg_acc_pt_local}, f_score
+        """
 
     def evaluate(self, avg_metrics):
         # VIL/DIL/CIL/JOINT evaluation using continual_datasets output
@@ -363,6 +399,7 @@ class Trainer:
             avg_metrics['acc'], f_score = self.summarize_acc(avg_metrics['acc'], metric_table['acc'], metric_table_local['acc'])
             return avg_metrics, f_score
 
+        """
         self.learner = learners.__dict__[self.learner_type].__dict__[self.learner_name](self.learner_config)
 
         # store results
@@ -411,6 +448,7 @@ class Trainer:
         avg_metrics['acc'], f_score = self.summarize_acc(avg_metrics['acc'], metric_table['acc'],  metric_table_local['acc'])
 
         return avg_metrics, f_score
+        """
 
     def cal_fscore(self, y):
         index = y.shape [1]

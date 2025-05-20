@@ -67,7 +67,7 @@ class NormalNN(nn.Module):
     #           MODEL TRAINING               #
     ##########################################
 
-    def learn_batch(self, train_loader, train_dataset, model_save_dir, val_loader=None):
+    def learn_batch(self, train_loader, train_dataset, model_save_dir, val_loader=None, develop=False):
         
         # try to load model
         need_train = True
@@ -98,6 +98,7 @@ class NormalNN(nn.Module):
 
                 batch_timer.tic()
                 for i, data in enumerate(train_loader):
+                    if develop and i > 10: break
                     if len(data) == 3:
                         x, y, task = data
                     else:
@@ -124,12 +125,11 @@ class NormalNN(nn.Module):
                     accumulate_acc(output, y, task, acc, topk=(self.top_k,))
                     losses.update(loss,  y.size(0)) 
                     batch_timer.tic()
-                if (epoch+1) % 10 == 0:
                     # eval update
-                    self.log('Epoch:{epoch:.0f}/{total:.0f}'.format(epoch=self.epoch+1,total=self.config['schedule'][-1]))
-                    self.log(' * Loss {loss.avg:.3f} | Train Acc {acc.avg:.3f}'.format(loss=losses,acc=acc))
-                    for param_group in self.optimizer.param_groups:
-                        self.log('LR:', param_group['lr'])
+                self.log('Epoch:{epoch:.0f}/{total:.0f}'.format(epoch=self.epoch+1,total=self.config['schedule'][-1]))
+                self.log(' * Loss {loss.avg:.3f} | Train Acc {acc.avg:.3f}'.format(loss=losses,acc=acc))
+                for param_group in self.optimizer.param_groups:
+                    self.log('LR:', param_group['lr'])
 
                 # reset
                 losses = AverageMeter()
