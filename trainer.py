@@ -232,6 +232,17 @@ class Trainer:
                 os.makedirs(model_save_dir, exist_ok=True)
                 """
                 model_save_dir = None
+                try:
+                    self.learner.model.module.task_id = i
+                except Exception:
+                    self.learner.model.task_id = i
+                if i > 0:
+                    try:
+                        if self.learner.model.module.prompt is not None:
+                            self.learner.model.module.prompt.process_task_count()
+                    except Exception:
+                        if self.learner.model.prompt is not None:
+                            self.learner.model.prompt.process_task_count()
                 avg_train_time = self.learner.learn_batch(train_loader, None, model_save_dir, test_loader, develop=self.develop)
                 """
                 self.learner.save_model(model_save_dir)
@@ -400,6 +411,17 @@ class Trainer:
             for i in range(self.num_tasks):
                 task_name = self.task_names[i]
                 print(f"{'='*20} Evaluating Task {task_name} {'='*20}")
+                try:
+                    self.learner.model.module.task_id = i
+                except Exception:
+                    self.learner.model.task_id = i
+                if i > 0:
+                    try:
+                        if self.learner.model.module.prompt is not None:
+                            self.learner.model.module.prompt.process_task_count()
+                    except Exception:
+                        if self.learner.model.prompt is not None:
+                            self.learner.model.prompt.process_task_count()
                 """
                 model_save_dir = os.path.join(self.model_top_dir, f'models/repeat-{self.seed+1}/task-{task_name}/')
                 self.learner.task_count = i
