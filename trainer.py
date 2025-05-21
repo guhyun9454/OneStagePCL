@@ -390,9 +390,6 @@ class Trainer:
         # VIL/DIL/CIL/JOINT evaluation using continual_datasets output
         if self.vil_dataloader:
             print("DEBUG: VIL 모드로 평가를 시작합니다.")
-            print(self.learner_config)
-            self.learner = learners.__dict__[self.learner_type].__dict__[self.learner_name](self.learner_config)
-            self.learner.add_valid_output_dim(self.learner_config['out_dim'])
             metric_table = {}
             metric_table_local = {}
             for mkey in self.metric_keys:
