@@ -8,8 +8,13 @@ from random import shuffle
 from collections import OrderedDict
 import dataloaders
 from dataloaders.utils import *
-from continual_datasets.dataset_utils import set_data_config
+from continual_datasets.dataset_utils import set_data_config, RandomSampleWrapper, get_ood_dataset
 from continual_datasets.build_incremental_scenario import build_continual_dataloader
+import torch.nn.functional as F
+import time
+import datetime
+from sklearn import metrics
+import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 import learners
 
@@ -258,6 +263,16 @@ class Trainer:
                         task_global=True,
                     )
                 self.evaluate_till_now(acc_matrix, i)
+
+                if args.ood_dataset:
+                    print(f"{'OOD Evaluation':=^60}")
+                    ood_start = time.time()
+                    all_id_datasets = torch.utils.data.ConcatDataset([self.dataloader[t]['val'].dataset for t in range(i+1)])
+                    ood_dataset = get_ood_dataset(args.ood_dataset, args)
+                    device = next(self.learner.model.parameters()).device
+                    self.evaluate_ood(self.learner.model, all_id_datasets, ood_dataset, device, args, i)
+                    ood_duration = time.time() - ood_start
+                    print(f"OOD evaluation after Task {i+1} completed in {str(datetime.timedelta(seconds=int(ood_duration)))}")
 
             return avg_metrics
 
@@ -523,3 +538,97 @@ class Trainer:
             forgetting = np.mean((np.max(acc_matrix, axis=1) - acc_matrix[:, task_id])[:task_id])
             result_str += f" Forgetting: {forgetting:.4f}"
         print(result_str)
+
+def save_logits_statistics(id_logits, ood_logits, args, task_id):
+    os.makedirs(os.path.join(args.log_dir, 'ood_statistics'), exist_ok=True)
+    np.savez(os.path.join(args.log_dir, 'ood_statistics', f'logits_task{task_id}.npz'),
+             id_logits=id_logits.cpu().numpy(),
+             ood_logits=ood_logits.cpu().numpy())
+
+def save_anomaly_histogram(id_scores, ood_scores, args, suffix, task_id):
+    os.makedirs(os.path.join(args.log_dir, 'ood_histograms'), exist_ok=True)
+    plt.figure()
+    plt.hist(id_scores, bins=50, alpha=0.5, label='ID')
+    plt.hist(ood_scores, bins=50, alpha=0.5, label='OOD')
+    plt.legend()
+    plt.title(f'{suffix.upper()} Histogram (Task {task_id})')
+    plt.savefig(os.path.join(args.log_dir, 'ood_histograms', f'task{task_id}_{suffix}_hist.png'))
+    plt.close()
+
+    def evaluate_ood(self, model, id_datasets, ood_dataset, device, args, task_id=None):
+        model.eval()
+
+        ood_method = args.ood_method.upper()
+
+        def MSP(logits):
+            return F.softmax(logits, dim=1).max(dim=1)[0]
+
+        def ENERGY(logits):
+            return torch.logsumexp(logits, dim=1)
+
+        def KL(logits):
+            uniform = torch.ones_like(logits) / logits.shape[-1]
+            return F.cross_entropy(logits, uniform, reduction='none')
+
+        id_size = len(id_datasets)
+        ood_size = len(ood_dataset)
+        min_size = min(id_size, ood_size)
+        if args.develop:
+            min_size = 1000
+        if args.verbose:
+            print(f"ID dataset size: {id_size}, OOD dataset size: {ood_size}. Using {min_size} samples each for evaluation.")
+
+        id_dataset_aligned = RandomSampleWrapper(id_datasets, min_size, args.seed) if id_size > min_size else id_datasets
+        ood_dataset_aligned = RandomSampleWrapper(ood_dataset, min_size, args.seed) if ood_size > min_size else ood_dataset
+
+        aligned_id_loader = DataLoader(id_dataset_aligned, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
+        aligned_ood_loader = DataLoader(ood_dataset_aligned, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
+
+        id_logits_list, ood_logits_list = [], []
+
+        with torch.no_grad():
+            for inputs, _ in aligned_id_loader:
+                inputs = inputs.to(device)
+                logits = model(inputs)
+                id_logits_list.append(logits)
+
+            for inputs, _ in aligned_ood_loader:
+                inputs = inputs.to(device)
+                logits = model(inputs)
+                ood_logits_list.append(logits)
+
+        id_logits = torch.cat(id_logits_list, dim=0)
+        ood_logits = torch.cat(ood_logits_list, dim=0)
+
+        if args.save:
+            save_logits_statistics(id_logits, ood_logits, args, task_id if task_id is not None else 0)
+
+        binary_labels = np.concatenate([np.ones(id_logits.shape[0]), np.zeros(ood_logits.shape[0])])
+
+        methods = ["MSP", "ENERGY", "KL"] if ood_method == "ALL" else [ood_method]
+
+        results = {}
+        for method in methods:
+            if method == "MSP":
+                id_scores, ood_scores = MSP(id_logits), MSP(ood_logits)
+            elif method == "ENERGY":
+                id_scores, ood_scores = ENERGY(id_logits), ENERGY(ood_logits)
+            else:
+                id_scores, ood_scores = KL(id_logits), KL(ood_logits)
+
+            if args.verbose:
+                save_anomaly_histogram(id_scores.cpu().numpy(), ood_scores.cpu().numpy(), args, suffix=method.lower(), task_id=task_id)
+
+            all_scores = torch.cat([id_scores, ood_scores], dim=0).cpu().numpy()
+
+            fpr, tpr, _ = metrics.roc_curve(binary_labels, all_scores, drop_intermediate=False)
+            auroc = metrics.auc(fpr, tpr)
+            idx_tpr95 = np.abs(tpr - 0.95).argmin()
+            fpr_at_tpr95 = fpr[idx_tpr95]
+
+            print(f"[{method}]: evaluating metrics...")
+            print(f"AUROC: {auroc * 100:.2f}%, FPR@TPR95: {fpr_at_tpr95 * 100:.2f}%")
+
+            results[method] = {"auroc": auroc, "fpr_at_tpr95": fpr_at_tpr95, "scores": all_scores}
+
+        return results
