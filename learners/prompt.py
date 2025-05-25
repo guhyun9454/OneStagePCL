@@ -27,10 +27,19 @@ class Prompt(NormalNN):
 
         # logits
         logits, prompt_loss = self.model(inputs, train=True)
-        logits = logits[:,:self.valid_out_dim]
-
-        if self.IL_mode != 'vil':
-            logits[:,:self.last_valid_out_dim] = -float('inf')
+        logits = logits[:, :self.valid_out_dim]
+        if self.IL_mode == 'vil':
+            try:
+                task_id = self.model.module.task_id
+            except Exception:
+                task_id = self.model.task_id
+            cls_list = self.tasks[task_id]
+            device = logits.device
+            mask = torch.ones(self.valid_out_dim, dtype=torch.bool, device=device)
+            mask[cls_list] = False
+            logits[:, mask] = -float('inf')
+        elif self.IL_mode != 'vil':
+            logits[:, :self.last_valid_out_dim] = -float('inf')
         dw_cls = self.dw_k[-1 * torch.ones(targets.size()).long()]
         total_loss = self.criterion(logits, targets.long(), dw_cls)
 
