@@ -50,6 +50,12 @@ def create_args():
     parser.add_argument('--ood_method', type=str, default='ALL', help='OOD detection method: MSP, ENERGY, KL, ALL')
     parser.add_argument('--save', action='store_true', help='Save OOD evaluation statistics')
     parser.add_argument('--verbose', action='store_true', help='Verbose OOD evaluation logs')
+    
+    # Wandb Args
+    parser.add_argument('--wandb', default=False, action='store_true', help='Enable wandb logging')
+    parser.add_argument('--wandb_project', type=str, help='Wandb project name')
+    parser.add_argument('--wandb_run', type=str, help='Wandb run name')
+    
     return parser
 
 def get_args(argv):

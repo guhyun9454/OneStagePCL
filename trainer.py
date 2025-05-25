@@ -79,6 +79,15 @@ class Trainer:
 
             if self.vil_dataloader:
                 self.learner.add_valid_output_dim(args.num_classes)
+                
+            # Initialize wandb if enabled
+            if args.wandb:
+                import wandb
+                wandb.init(
+                    project=args.wandb_project,
+                    name=args.wandb_run,
+                    config=vars(args),
+                )
             return
         # select dataset
         self.grayscale_vis = False
@@ -181,6 +190,16 @@ class Trainer:
                         }
         self.learner_type, self.learner_name = args.learner_type, args.learner_name
         self.learner = learners.__dict__[self.learner_type].__dict__[self.learner_name](self.learner_config)
+
+        # Initialize wandb if enabled
+        if args.wandb:
+            import wandb
+            wandb.init(
+                project=getattr(args, 'wandb_project', 'continual-learning'),
+                name=f"{args.dataset}_{args.learner_name}_seed{seed}",
+                config=vars(args),
+                reinit=True
+            )
 
     def task_eval(self, t_index, local=False, task='acc'):
 
@@ -538,7 +557,13 @@ class Trainer:
         if task_id > 0:
             forgetting = np.mean((np.max(acc_matrix, axis=1) - acc_matrix[:, task_id])[:task_id])
             result_str += f" Forgetting: {forgetting:.4f}"
+        else:
+            forgetting = 0
         print(result_str)
+
+        if self.args.wandb:
+            import wandb
+            wandb.log({"A_last (↑)": A_last, "A_avg (↑)": A_avg, "Forgetting (↓)": forgetting, "TASK": task_id})
 
     def evaluate_ood(self, model, id_datasets, ood_dataset, device, args, task_id=None):
         model.eval()
@@ -613,6 +638,10 @@ class Trainer:
 
             print(f"[{method}]: evaluating metrics...")
             print(f"AUROC: {auroc * 100:.2f}%, FPR@TPR95: {fpr_at_tpr95 * 100:.2f}%")
+
+            if args.wandb:
+                import wandb
+                wandb.log({f"{method}_AUROC (↑)": auroc * 100, f"{method}_FPR@TPR95 (↓)": fpr_at_tpr95 * 100, "TASK": task_id})
 
             results[method] = {"auroc": auroc, "fpr_at_tpr95": fpr_at_tpr95, "scores": all_scores}
 
