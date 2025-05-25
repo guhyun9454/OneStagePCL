@@ -23,6 +23,7 @@ class Trainer:
     def __init__(self, args, seed, metric_keys, save_keys):
 
         # process inputs
+        self.args = args  # args를 인스턴스 변수로 저장
         self.seed = seed
         self.metric_keys = metric_keys
         self.save_keys = save_keys
@@ -264,13 +265,13 @@ class Trainer:
                     )
                 self.evaluate_till_now(acc_matrix, i)
 
-                if args.ood_dataset:
+                if self.args.ood_dataset:
                     print(f"{'OOD Evaluation':=^60}")
                     ood_start = time.time()
                     all_id_datasets = torch.utils.data.ConcatDataset([self.dataloader[t]['val'].dataset for t in range(i+1)])
-                    ood_dataset = get_ood_dataset(args.ood_dataset, args)
+                    ood_dataset = get_ood_dataset(self.args.ood_dataset, self.args)
                     device = next(self.learner.model.parameters()).device
-                    self.evaluate_ood(self.learner.model, all_id_datasets, ood_dataset, device, args, i)
+                    self.evaluate_ood(self.learner.model, all_id_datasets, ood_dataset, device, self.args, i)
                     ood_duration = time.time() - ood_start
                     print(f"OOD evaluation after Task {i+1} completed in {str(datetime.timedelta(seconds=int(ood_duration)))}")
 
@@ -539,22 +540,6 @@ class Trainer:
             result_str += f" Forgetting: {forgetting:.4f}"
         print(result_str)
 
-def save_logits_statistics(id_logits, ood_logits, args, task_id):
-    os.makedirs(os.path.join(args.log_dir, 'ood_statistics'), exist_ok=True)
-    np.savez(os.path.join(args.log_dir, 'ood_statistics', f'logits_task{task_id}.npz'),
-             id_logits=id_logits.cpu().numpy(),
-             ood_logits=ood_logits.cpu().numpy())
-
-def save_anomaly_histogram(id_scores, ood_scores, args, suffix, task_id):
-    os.makedirs(os.path.join(args.log_dir, 'ood_histograms'), exist_ok=True)
-    plt.figure()
-    plt.hist(id_scores, bins=50, alpha=0.5, label='ID')
-    plt.hist(ood_scores, bins=50, alpha=0.5, label='OOD')
-    plt.legend()
-    plt.title(f'{suffix.upper()} Histogram (Task {task_id})')
-    plt.savefig(os.path.join(args.log_dir, 'ood_histograms', f'task{task_id}_{suffix}_hist.png'))
-    plt.close()
-
     def evaluate_ood(self, model, id_datasets, ood_dataset, device, args, task_id=None):
         model.eval()
 
@@ -632,3 +617,19 @@ def save_anomaly_histogram(id_scores, ood_scores, args, suffix, task_id):
             results[method] = {"auroc": auroc, "fpr_at_tpr95": fpr_at_tpr95, "scores": all_scores}
 
         return results
+
+def save_logits_statistics(id_logits, ood_logits, args, task_id):
+    os.makedirs(os.path.join(args.log_dir, 'ood_statistics'), exist_ok=True)
+    np.savez(os.path.join(args.log_dir, 'ood_statistics', f'logits_task{task_id}.npz'),
+             id_logits=id_logits.cpu().numpy(),
+             ood_logits=ood_logits.cpu().numpy())
+
+def save_anomaly_histogram(id_scores, ood_scores, args, suffix, task_id):
+    os.makedirs(os.path.join(args.log_dir, 'ood_histograms'), exist_ok=True)
+    plt.figure()
+    plt.hist(id_scores, bins=50, alpha=0.5, label='ID')
+    plt.hist(ood_scores, bins=50, alpha=0.5, label='OOD')
+    plt.legend()
+    plt.title(f'{suffix.upper()} Histogram (Task {task_id})')
+    plt.savefig(os.path.join(args.log_dir, 'ood_histograms', f'task{task_id}_{suffix}_hist.png'))
+    plt.close()
