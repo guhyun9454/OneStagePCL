@@ -1,5 +1,5 @@
-dataset: iDigits
-num_tasks: 20
+dataset: DomainNet
+num_tasks: 30
 first_split_size: 10
 other_split_size: 10
 schedule:
