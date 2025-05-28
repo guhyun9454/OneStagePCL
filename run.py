@@ -126,7 +126,9 @@ if __name__ == '__main__':
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
     # set up a trainer
     trainer = Trainer(args, seed, metric_keys, save_keys)
@@ -143,13 +145,7 @@ if __name__ == '__main__':
     avg_metrics = trainer.train(avg_metrics)  
 
     # evaluate model
-    avg_metrics, f_score = trainer.evaluate(avg_metrics)
-
-    # 결과 출력
-    print('===실험 결과 요약===')
-    for mkey in metric_keys: 
-        print(mkey, ' | value:', avg_metrics[mkey]['global'][-1, 0])
-    print ('F-score:', f_score)
+    # avg_metrics, f_score = trainer.evaluate(avg_metrics)
     
 
 
