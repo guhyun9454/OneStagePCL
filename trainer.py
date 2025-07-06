@@ -568,77 +568,74 @@ class Trainer:
     def evaluate_ood(self, model, id_datasets, ood_dataset, device, args, task_id=None):
         model.eval()
 
+        # === New unified OOD evaluation (adapter 기반) ===
         ood_method = args.ood_method.upper()
 
-        def MSP(logits):
-            return F.softmax(logits, dim=1).max(dim=1)[0]
-
-        def ENERGY(logits):
-            return torch.logsumexp(logits, dim=1)
-
-        def KL(logits):
-            uniform = torch.ones_like(logits) / logits.shape[-1]
-            return F.cross_entropy(logits, uniform, reduction='none')
-
-        id_size = len(id_datasets)
-        ood_size = len(ood_dataset)
+        # 1) 데이터셋 크기 맞추기
+        id_size, ood_size = len(id_datasets), len(ood_dataset)
         min_size = min(id_size, ood_size)
         if args.develop:
-            min_size = 1000
-        if args.verbose:
-            print(f"ID dataset size: {id_size}, OOD dataset size: {ood_size}. Using {min_size} samples each for evaluation.")
+            min_size = 100
+        print(f"ID dataset size: {id_size}, OOD dataset size: {ood_size}. Using {min_size} samples each for evaluation.")
 
         id_dataset_aligned = RandomSampleWrapper(id_datasets, min_size, args.seed) if id_size > min_size else id_datasets
         ood_dataset_aligned = RandomSampleWrapper(ood_dataset, min_size, args.seed) if ood_size > min_size else ood_dataset
 
-        aligned_id_loader = DataLoader(id_dataset_aligned, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
-        aligned_ood_loader = DataLoader(ood_dataset_aligned, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
+        id_loader = DataLoader(id_dataset_aligned, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
+        ood_loader = DataLoader(ood_dataset_aligned, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
-        id_logits_list, ood_logits_list = [], []
+        # 2) 평가할 방법 결정
+        from OODdetectors.ood_adapter import SUPPORTED_METHODS, compute_ood_scores
+        if ood_method == "ALL":
+            methods = SUPPORTED_METHODS
+        else:
+            # 쉼표로 구분된 메소드들 처리
+            methods = [method.strip().upper() for method in ood_method.split(',')]
+            # 지원되지 않는 메소드 확인
+            unsupported = [m for m in methods if m not in SUPPORTED_METHODS]
+            if unsupported:
+                raise ValueError(f"지원되지 않는 OOD 메소드: {unsupported}. 지원되는 메소드: {SUPPORTED_METHODS}")
 
-        with torch.no_grad():
-            for inputs, _ in aligned_id_loader:
-                inputs = inputs.to(device)
-                logits = model(inputs)
-                id_logits_list.append(logits)
-
-            for inputs, _ in aligned_ood_loader:
-                inputs = inputs.to(device)
-                logits = model(inputs)
-                ood_logits_list.append(logits)
-
-        id_logits = torch.cat(id_logits_list, dim=0)
-        ood_logits = torch.cat(ood_logits_list, dim=0)
-
-        if args.save:
-            save_logits_statistics(id_logits, ood_logits, args, task_id if task_id is not None else 0)
-
-        binary_labels = np.concatenate([np.ones(id_logits.shape[0]), np.zeros(ood_logits.shape[0])])
-
-        methods = ["MSP", "ENERGY", "KL"] if ood_method == "ALL" else [ood_method]
-
+        from sklearn import metrics
         results = {}
+
+        # # Logits 저장 (첫 번째 방법에서만)
+        # if args.save and methods:
+        #     first_method = methods[0]
+        #     with torch.no_grad():
+        #         id_logits_list, ood_logits_list = [], []
+        #         for inputs, _ in id_loader:
+        #             inputs = inputs.to(device)
+        #             logits = model(inputs)
+        #             id_logits_list.append(logits.cpu())
+        #         for inputs, _ in ood_loader:
+        #             inputs = inputs.to(device)
+        #             logits = model(inputs)
+        #             ood_logits_list.append(logits.cpu())
+                
+        #         id_logits = torch.cat(id_logits_list, dim=0)
+        #         ood_logits = torch.cat(ood_logits_list, dim=0)
+        #         save_logits_statistics(id_logits, ood_logits, args, task_id if task_id is not None else 0)
+
         for method in methods:
-            if method == "MSP":
-                id_scores, ood_scores = MSP(id_logits), MSP(ood_logits)
-            elif method == "ENERGY":
-                id_scores, ood_scores = ENERGY(id_logits), ENERGY(ood_logits)
-            else:
-                id_scores, ood_scores = KL(id_logits), KL(ood_logits)
+            id_scores, ood_scores = compute_ood_scores(method, model, id_loader, ood_loader, device)
 
+            # 시각화 및 로깅
             if args.verbose:
-                save_anomaly_histogram(id_scores.cpu().numpy(), ood_scores.cpu().numpy(), args, suffix=method.lower(), task_id=task_id)
+                hist_path = save_anomaly_histogram(id_scores.cpu().numpy(), ood_scores.cpu().numpy(), args, suffix=method.lower(), task_id=task_id)
+                if args.wandb:
+                    import wandb
+                    wandb.log({f"Anomaly Histogram TASK {task_id} {method}": wandb.Image(hist_path)})
 
-            all_scores = torch.cat([id_scores, ood_scores], dim=0).cpu().numpy()
+            binary_labels = np.concatenate([np.ones(id_scores.shape[0]), np.zeros(ood_scores.shape[0])])
+            all_scores = np.concatenate([id_scores.cpu().numpy(), ood_scores.cpu().numpy()])
 
             fpr, tpr, _ = metrics.roc_curve(binary_labels, all_scores, drop_intermediate=False)
             auroc = metrics.auc(fpr, tpr)
             idx_tpr95 = np.abs(tpr - 0.95).argmin()
             fpr_at_tpr95 = fpr[idx_tpr95]
 
-            print(f"[{method}]: evaluating metrics...")
-            print(f"AUROC: {auroc * 100:.2f}%, FPR@TPR95: {fpr_at_tpr95 * 100:.2f}%")
-
+            print(f"[{method}]: AUROC {auroc * 100:.2f}% | FPR@TPR95 {fpr_at_tpr95 * 100:.2f}%")
             if args.wandb:
                 import wandb
                 wandb.log({f"{method}_AUROC (↑)": auroc * 100, f"{method}_FPR@TPR95 (↓)": fpr_at_tpr95 * 100, "TASK": task_id})
@@ -662,3 +659,4 @@ def save_anomaly_histogram(id_scores, ood_scores, args, suffix, task_id):
     plt.title(f'{suffix.upper()} Histogram (Task {task_id})')
     plt.savefig(os.path.join(args.log_dir, 'ood_histograms', f'task{task_id}_{suffix}_hist.png'))
     plt.close()
+    return os.path.join(args.log_dir, 'ood_histograms', f'task{task_id}_{suffix}_hist.png')

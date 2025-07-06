@@ -92,14 +92,14 @@ class NormalNN(nn.Module):
             acc = AverageMeter()
             batch_time = AverageMeter()
             batch_timer = Timer()
-            for epoch in range(self.config['schedule'][-1]):
+            for epoch in range(1 if develop else self.config['schedule'][-1]):
                 self.epoch=epoch
 
                 if epoch > 0: self.scheduler.step()
 
                 batch_timer.tic()
                 for i, data in enumerate(tqdm(train_loader)):
-                    if develop and i > 10: break
+                    if develop and i > 1: break
                     if len(data) == 3:
                         x, y, task = data
                     else:

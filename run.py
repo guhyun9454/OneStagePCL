@@ -47,9 +47,29 @@ def create_args():
                          help="yaml experiment config input")
     parser.add_argument('--develop', default=False, action='store_true', help='develop mode')
     parser.add_argument('--ood_dataset', type=str, default=None, help='Name of OOD dataset to evaluate')
-    parser.add_argument('--ood_method', type=str, default='ALL', help='OOD detection method: MSP, ENERGY, KL, ALL')
+    parser.add_argument('--ood_method', type=str, default='ALL', help='OOD detection method: MSP, ENERGY, GEN, PRO-GEN, etc. (comma-separated or ALL)')
     parser.add_argument('--save', action='store_true', help='Save OOD evaluation statistics')
     parser.add_argument('--verbose', action='store_true', help='Verbose OOD evaluation logs')
+    
+    # === OOD method hyper-parameters ===
+    parser.add_argument('--energy_temperature', type=float, default=1.0, help='Temperature for ENERGY postprocessor')
+    # GEN
+    parser.add_argument('--gen_gamma', type=float, default=0.1, help='Gamma for GEN / PRO_GEN postprocessor')
+    parser.add_argument('--gen_M', type=int, default=100, help='Top-M probabilities used in GEN / PRO_GEN postprocessor')
+    # PRO-GEN
+    parser.add_argument('--pro_gen_noise_level', type=float, default=1e-4, help='Noise level for PRO_GEN postprocessor')
+    parser.add_argument('--pro_gen_gd_steps', type=int, default=3, help='Gradient descent steps for PRO_GEN postprocessor')
+    # PRO-MSP
+    parser.add_argument('--pro_msp_temperature', type=float, default=1.0, help='Temperature for PRO_MSP postprocessor')
+    parser.add_argument('--pro_msp_noise_level', type=float, default=0.003, help='Noise level for PRO_MSP postprocessor')
+    parser.add_argument('--pro_msp_gd_steps', type=int, default=1, help='Gradient descent steps for PRO_MSP postprocessor')
+    # PRO-MSP-T
+    parser.add_argument('--pro_msp_t_temperature', type=float, default=1.0, help='Temperature for PRO_MSP_T postprocessor')
+    parser.add_argument('--pro_msp_t_noise_level', type=float, default=0.003, help='Noise level for PRO_MSP_T postprocessor')
+    parser.add_argument('--pro_msp_t_gd_steps', type=int, default=1, help='Gradient descent steps for PRO_MSP_T postprocessor')
+    # PRO-ENT
+    parser.add_argument('--pro_ent_noise_level', type=float, default=0.0014, help='Noise level for PRO_ENT postprocessor')
+    parser.add_argument('--pro_ent_gd_steps', type=int, default=2, help='Gradient descent steps for PRO_ENT postprocessor')
     
     # Wandb Args
     parser.add_argument('--wandb', default=False, action='store_true', help='Enable wandb logging')
@@ -130,6 +150,10 @@ if __name__ == '__main__':
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
+    # OOD 하이퍼파라미터 업데이트
+    from utils import update_ood_hyperparams
+    update_ood_hyperparams(args)
+    
     # set up a trainer
     trainer = Trainer(args, seed, metric_keys, save_keys)
 

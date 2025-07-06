@@ -1,0 +1,224 @@
+_wandb:
+    value:
+        cli_version: 0.21.0
+        e:
+            gg99l8fkcougrijvipmerd8jcfwz6fr3:
+                args:
+                    - --IL_mode
+                    - vil
+                    - --learner_type
+                    - prompt
+                    - --learner_name
+                    - OSPrompt
+                    - --prompt_param
+                    - "20"
+                    - "8"
+                    - "1e-4"
+                    - --log_dir
+                    - save/16
+                    - --config
+                    - vil_experiments/iDigits.yaml
+                    - --seed
+                    - "16"
+                    - --ood_dataset
+                    - EMNIST
+                    - --ood_method
+                    - MSP,ENERGY,GEN,PRO_GEN
+                    - --wandb
+                    - --wandb_project
+                    - iDigits_OODVIL_seed_tuning
+                    - --wandb_run
+                    - 16_OSP
+                    - --develop
+                codePath: run.py
+                codePathLocal: run.py
+                cpu_count: 20
+                cpu_count_logical: 28
+                cudaVersion: "12.7"
+                disk:
+                    /:
+                        total: "999504269312"
+                        used: "872331747328"
+                email: guhyun5454@gmail.com
+                executable: C:\ProgramData\anaconda3\envs\OODVIL2\python.exe
+                git:
+                    commit: 0cb90f9b60f68c439e44d53648d9e5874a84293b
+                    remote: https://github.com/guhyun9454/OneStagePCL.git
+                gpu: NVIDIA GeForce RTX 4080
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ada
+                      cudaCores: 9728
+                      memoryTotal: "17171480576"
+                      name: NVIDIA GeForce RTX 4080
+                      uuid: GPU-58e53fdc-0499-fa87-9cd3-9a2e07a8ccf2
+                host: DESKTOP-LG1I8H3
+                memory:
+                    total: "34111361024"
+                os: Windows-10-10.0.19045-SP0
+                program: run.py
+                python: CPython 3.8.20
+                root: C:\Users\Administrator\documents\GitHub\OneStagePCL
+                startedAt: "2025-07-06T15:44:02.401800Z"
+                writerId: gg99l8fkcougrijvipmerd8jcfwz6fr3
+        m: []
+        python_version: 3.8.20
+        t:
+            "1":
+                - 1
+                - 5
+                - 41
+                - 49
+                - 53
+                - 63
+            "2":
+                - 1
+                - 5
+                - 41
+                - 49
+                - 53
+                - 63
+            "3":
+                - 13
+                - 16
+            "4": 3.8.20
+            "5": 0.21.0
+            "8":
+                - 3
+            "12": 0.21.0
+            "13": windows-amd64
+DW:
+    value: false
+IL_mode:
+    value: vil
+batch_size:
+    value: 128
+config:
+    value: vil_experiments/iDigits.yaml
+data_path:
+    value: /local_datasets
+dataroot:
+    value: /local_datasets
+dataset:
+    value: iDigits
+debug_mode:
+    value: 0
+develop:
+    value: true
+develop_tasks:
+    value: false
+energy_temperature:
+    value: 1
+first_split_size:
+    value: 10
+gen_M:
+    value: 100
+gen_gamma:
+    value: 0.1
+gpuid:
+    value:
+        - 0
+id_datasets:
+    value:
+        - MNIST
+        - SVHN
+        - MNISTM
+        - SynDigit
+learner_name:
+    value: OSPrompt
+learner_type:
+    value: prompt
+log_dir:
+    value: save/16
+lr:
+    value: 0.0028125
+max_task:
+    value: -1
+memory:
+    value: 0
+model_name:
+    value: vit_pt_imnet
+model_type:
+    value: zoo
+momentum:
+    value: 0.9
+num_classes:
+    value: 10
+num_domains:
+    value: 4
+num_tasks:
+    value: 20
+num_workers:
+    value: 4
+ood_dataset:
+    value: EMNIST
+ood_method:
+    value: MSP,ENERGY,GEN,PRO_GEN
+optimizer:
+    value: Adam
+oracle_flag:
+    value: false
+other_split_size:
+    value: 10
+overwrite:
+    value: 0
+pro_ent_gd_steps:
+    value: 2
+pro_ent_noise_level:
+    value: 0.0014
+pro_gen_gd_steps:
+    value: 3
+pro_gen_noise_level:
+    value: 0.0001
+pro_msp_gd_steps:
+    value: 1
+pro_msp_noise_level:
+    value: 0.003
+pro_msp_t_gd_steps:
+    value: 1
+pro_msp_t_noise_level:
+    value: 0.003
+pro_msp_t_temperature:
+    value: 1
+pro_msp_temperature:
+    value: 1
+prompt_param:
+    value:
+        - 20
+        - 8
+        - 0.0001
+query:
+    value: vit
+rand_split:
+    value: false
+save:
+    value: false
+schedule:
+    value:
+        - 5
+schedule_type:
+    value: cosine
+seed:
+    value: 16
+shuffle:
+    value: false
+temp:
+    value: 2
+train_aug:
+    value: false
+upper_bound_flag:
+    value: false
+validation:
+    value: false
+verbose:
+    value: false
+wandb:
+    value: true
+wandb_project:
+    value: iDigits_OODVIL_seed_tuning
+wandb_run:
+    value: 16_OSP
+weight_decay:
+    value: 0
+workers:
+    value: 4
