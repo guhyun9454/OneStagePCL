@@ -44,8 +44,6 @@ parameters:
     value: "5e-4"
 
   # --- WandB 설정 ---
-  wandb:
-    value: true
   wandb_project:
     value: MainTable
   wandb_run:
