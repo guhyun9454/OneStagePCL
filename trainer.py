@@ -81,7 +81,9 @@ class Trainer:
                 self.learner.add_valid_output_dim(args.num_classes)
                 
             # Initialize wandb if enabled
-            if args.wandb:
+            args.wandb = False
+            if args.wandb_project and args.wandb_run:
+                args.wandb = True
                 import wandb
                 wandb.init(
                     project=args.wandb_project,
