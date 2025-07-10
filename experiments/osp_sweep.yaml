@@ -11,9 +11,6 @@ command:
   - ${args}
 program: run.py
 method: grid
-metric:
-  name: val/accuracy_last_task
-  goal: maximize
 parameters:
   # --- 기본 설정 ---
   config:
@@ -44,6 +41,8 @@ parameters:
     value: "5e-4"
 
   # --- WandB 설정 ---
+  wandb:
+    value: true
   wandb_project:
     value: MainTable
   wandb_run:
