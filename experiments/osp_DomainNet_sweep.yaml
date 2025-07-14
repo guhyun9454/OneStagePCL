@@ -1,0 +1,47 @@
+# osp_sweep.yaml (수정된 버전)
+name: OSP_sweep
+command:
+  - ${env}
+  - python
+  - ${program}
+  - --prompt_param
+  - 20
+  - 8
+  - 1e-4
+  - ${args}
+program: run.py
+method: grid
+parameters:
+  # --- 기본 설정 ---
+  config:
+    value: vil_experiments/DomainNet.yaml
+  IL_mode:
+    value: vil
+
+  # --- 모델 및 시드 ---
+  learner_type:
+    value: prompt
+  learner_name:
+    value: OSPrompt
+  seed:
+    values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+  # --- OOD 설정 ---
+  ood_dataset:
+    value: CORe50
+  ood_method:
+    value: MSP,MAXLOGIT,ENERGY,GEN,PRO_GEN
+  gen_gamma:
+    value: 0.01
+  gen_M:
+    value: 3
+  pro_gen_gd_steps:
+    value: 3
+  pro_gen_noise_level:
+    value: "5e-4"
+
+  # --- WandB 설정 ---
+  wandb_project:
+    value: MainTable_DomainNet
+  wandb_run:
+    value: OSP

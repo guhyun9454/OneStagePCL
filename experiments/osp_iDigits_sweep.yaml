@@ -42,6 +42,6 @@ parameters:
 
   # --- WandB 설정 ---
   wandb_project:
-    value: MainTable
+    value: MainTable_iDigits
   wandb_run:
     value: OSP
