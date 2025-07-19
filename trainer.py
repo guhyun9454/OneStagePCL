@@ -254,11 +254,12 @@ class Trainer:
                 test_loader = self.dataloader[i]['val']
                 task_name = self.task_names[i]
                 print(f"{'='*20} Task {task_name} {'='*20}")
-                """
-                model_save_dir = os.path.join(self.model_top_dir, f'models/repeat-{self.seed+1}/task-{task_name}/')
-                os.makedirs(model_save_dir, exist_ok=True)
-                """
-                model_save_dir = None
+                # --save 플래그가 활성화된 경우에만 모델을 디스크에 저장합니다.
+                if self.args.save:
+                    model_save_dir = os.path.join(self.model_top_dir, f'models/seed-{self.seed}/task-{task_name}/')
+                    os.makedirs(model_save_dir, exist_ok=True)
+                else:
+                    model_save_dir = None
                 try:
                     self.learner.model.module.task_id = i
                 except Exception:
@@ -270,10 +271,10 @@ class Trainer:
                     except Exception:
                         if self.learner.model.prompt is not None:
                             self.learner.model.prompt.process_task_count()
+                # 학습 후 필요 시 모델을 저장합니다.
                 avg_train_time = self.learner.learn_batch(train_loader, None, model_save_dir, test_loader, develop=self.develop)
-                """
-                self.learner.save_model(model_save_dir)
-                """
+                if self.args.save and model_save_dir is not None:
+                    self.learner.save_model(model_save_dir)
                 if avg_train_time is not None:
                     avg_metrics['time']['global'][i] = avg_train_time
 

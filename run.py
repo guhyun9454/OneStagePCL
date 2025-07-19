@@ -48,7 +48,7 @@ def create_args():
     parser.add_argument('--develop', default=False, action='store_true', help='develop mode')
     parser.add_argument('--ood_dataset', type=str, default=None, help='Name of OOD dataset to evaluate')
     parser.add_argument('--ood_method', type=str, default='ALL', help='OOD detection method: MSP, ENERGY, GEN, PRO-GEN, etc. (comma-separated or ALL)')
-    parser.add_argument('--save', action='store_true', help='Save OOD evaluation statistics')
+    parser.add_argument('--save', action='store_true', help='(OOD 및) 태스크별 모델 체크포인트 저장')
     parser.add_argument('--verbose', action='store_true', help='Verbose OOD evaluation logs')
     
     # === OOD method hyper-parameters ===
