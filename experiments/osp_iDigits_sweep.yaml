@@ -39,6 +39,8 @@ parameters:
     value: 3
   pro_gen_noise_level:
     value: "5e-4"
+  ood_develop:
+    value: 10000
 
   # --- WandB 설정 ---
   wandb_project:
