@@ -579,6 +579,8 @@ class Trainer:
         min_size = min(id_size, ood_size)
         if args.develop:
             min_size = 100
+        if args.ood_develop:
+            min_size = args.ood_develop
         print(f"ID dataset size: {id_size}, OOD dataset size: {ood_size}. Using {min_size} samples each for evaluation.")
 
         id_dataset_aligned = RandomSampleWrapper(id_datasets, min_size, args.seed) if id_size > min_size else id_datasets
