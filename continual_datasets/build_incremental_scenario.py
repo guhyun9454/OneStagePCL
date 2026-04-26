@@ -156,7 +156,6 @@ def build_continual_dataloader(args):
             batch_size=args.batch_size,
             num_workers=args.num_workers,
             pin_memory=True,
-            drop_last=True,
         )
 
         data_loader_val = torch.utils.data.DataLoader(
@@ -164,11 +163,12 @@ def build_continual_dataloader(args):
             batch_size=args.batch_size,
             num_workers=args.num_workers,
             pin_memory=True,
-            drop_last=True,
         )
 
         dataloader.append({'train': data_loader_train, 'val': data_loader_val})
-
+    
+    args.develop_tasks = False
+    args.verbose = False
     if args.verbose or args.develop_tasks:
         print(f"{'TASK INFO':=^60}")
         print(f"{'IL mode':<20} => {args.IL_mode}")
